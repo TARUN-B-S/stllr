@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "597202134408",
+    "project_id": "stllr-db5e4",
+    "storage_bucket": "stllr-db5e4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:597202134408:android:1687a542cbc4de4c50c63d",
+        "android_client_info": {
+          "package_name": "com.stllr.stllr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0fnZIoU18mIXciKEudTE8rqsfIW2BUDs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

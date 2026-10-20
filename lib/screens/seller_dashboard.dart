@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock.dart';
+import '../data/store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
@@ -18,7 +18,7 @@ class _SellerDashboardState extends State<SellerDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<MockStore>();
+    final store = context.watch<AppStore>();
     final user = store.user;
     final t = Theme.of(context).textTheme;
     final categories = ['All', ...{for (final r in store.requests) r.category}];
@@ -117,13 +117,22 @@ class _SellerDashboardState extends State<SellerDashboard> {
                     textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  onPressed: () {
-                    store.respondTo(r);
-                    final chat = store.chats.firstWhere((c) => c.peerName == r.buyerName);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Response sent to ${r.buyerName}. Say hello in chat.')),
-                    );
-                    Navigator.pushNamed(context, '/chat', arguments: chat);
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(context);
+                    try {
+                      final chat = await store.startChatFor(r);
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Response sent to ${r.buyerName}. Say hello in chat.')),
+                      );
+                      navigator.pushNamed('/chat', arguments: chat);
+                    } catch (_) {
+                      // Without this the tap would fail silently and the seller
+                      // would be left staring at an unchanged screen.
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Could not start the chat. Please try again.')),
+                      );
+                    }
                   },
                   child: const Text('Respond'),
                 ),
@@ -141,10 +150,10 @@ class _SellerDashboardState extends State<SellerDashboard> {
               ListTile(
                 onTap: () => Navigator.pushNamed(context, '/chat', arguments: c),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-                leading: AvatarBadge(label: c.peerName.characters.first.toUpperCase()),
-                title: Text(c.peerName, style: t.titleSmall),
+                leading: AvatarBadge(label: c.peerInitial(store.uid)),
+                title: Text(c.peerName(store.uid), style: t.titleSmall),
                 subtitle: Text(
-                  '${c.requestTitle} · ${c.messages.isEmpty ? '' : c.messages.last.text}',
+                  '${c.requestTitle} · ${c.lastMessage}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: t.bodySmall,

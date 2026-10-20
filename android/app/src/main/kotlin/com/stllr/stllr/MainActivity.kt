@@ -1,4 +1,4 @@
-package com.steller.steller_market
+package com.stllr.stllr
 
 import io.flutter.embedding.android.FlutterActivity
 

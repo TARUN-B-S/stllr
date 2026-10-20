@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    function inChat(chatId) {
+      return signedIn() &&
+        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+    }
+
+    // User profiles. Only the owner reads/edits their own; peer names are
+    // denormalized onto chats so nobody else needs to read the profile.
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid);
+      // Profile fields only. `role` is fixed at signup so a buyer cannot promote
+      // themselves to a seller, and the uid is pinned by the document path.
+      // NOTE: `subscribed` is self-writable because the verification payment is
+      // a client-side mock; a real deployment must set it from a server that has
+      // confirmed the charge.
+      allow update: if isSelf(uid) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'phone', 'location', 'bio', 'subscribed']);
+      allow delete: if false;
+    }
+
+    // Open buy requests. Any signed-in user can browse; only the buyer who
+    // posted can create. Sellers may only bump the response counter.
+    match /requests/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.buyerId == request.auth.uid;
+      allow update: if signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responseCount']);
+      allow delete: if false;
+    }
+
+    // Chats and their messages. Readable/writable only by the two participants.
+    // The seeded welcome message from the demo seller is created by the buyer,
+    // so senderId is not forced to match the caller here.
+    match /chats/{chatId} {
+      allow read: if signedIn() &&
+        request.auth.uid in resource.data.participants;
+      // Only the conversation preview may change. Membership and the request
+      // link are written once at creation, so a participant cannot add a third
+      // uid or repoint an existing chat at a different request.
+      allow update: if signedIn() &&
+        request.auth.uid in resource.data.participants &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['lastMessage', 'updatedAt']);
+      allow create: if signedIn() &&
+        request.auth.uid in request.resource.data.participants;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read, create: if inChat(chatId);
+        allow update, delete: if false;
+      }
+    }
+  }
+}

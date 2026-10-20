@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock.dart';
+import '../data/store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
@@ -10,10 +10,10 @@ class BuyerDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<MockStore>();
+    final store = context.watch<AppStore>();
     final user = store.user;
-    final mine = store.requests.where((r) => r.buyerName == user?.name).toList();
-    final others = store.requests.where((r) => r.buyerName != user?.name).toList();
+    final mine = store.myRequests;
+    final others = store.otherRequests;
     final chats = store.sellerChats;
     final t = Theme.of(context).textTheme;
 
@@ -73,10 +73,10 @@ class BuyerDashboard extends StatelessWidget {
               ListTile(
                 onTap: () => Navigator.pushNamed(context, '/chat', arguments: c),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-                leading: AvatarBadge(label: c.peerName.characters.first.toUpperCase()),
-                title: Text(c.peerName, style: t.titleSmall),
+                leading: AvatarBadge(label: c.peerInitial(store.uid)),
+                title: Text(c.peerName(store.uid), style: t.titleSmall),
                 subtitle: Text(
-                  c.messages.isEmpty ? c.requestTitle : c.messages.last.text,
+                  c.lastMessage.isEmpty ? c.requestTitle : c.lastMessage,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: t.bodySmall,

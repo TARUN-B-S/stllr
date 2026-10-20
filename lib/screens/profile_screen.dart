@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock.dart';
+import '../data/models.dart';
+import '../data/store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
@@ -23,12 +24,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final u = context.read<MockStore>().user;
-    _name = TextEditingController(text: u?.name ?? '');
-    _email = TextEditingController(text: u?.email ?? '');
-    _phone = TextEditingController(text: u?.phone ?? '');
-    _location = TextEditingController(text: u?.location ?? '');
-    _bio = TextEditingController(text: u?.bio ?? '');
+    final store = context.read<AppStore>().user;
+    _name = TextEditingController(text: store?.name ?? '');
+    _email = TextEditingController(text: store?.email ?? '');
+    _phone = TextEditingController(text: store?.phone ?? '');
+    _location = TextEditingController(text: store?.location ?? '');
+    _bio = TextEditingController(text: store?.bio ?? '');
   }
 
   @override
@@ -41,20 +42,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  void _save() {
-    context.read<MockStore>().updateProfile(
+  Future<void> _save() async {
+    await context.read<AppStore>().updateProfile(
           name: _name.text,
           phone: _phone.text,
           location: _location.text,
           bio: _bio.text,
         );
+    if (!mounted) return;
     setState(() => _editing = false);
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated')));
   }
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<MockStore>();
+    final store = context.watch<AppStore>();
     final u = store.user;
     if (u == null) return const Scaffold(body: Center(child: Text('Not logged in')));
     final isSeller = u.role == UserRole.seller;
@@ -121,9 +123,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () {
-              store.logout();
-              Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              await store.logout();
+              navigator.popUntil((route) => route.isFirst);
             },
             child: const Text('Log out', style: TextStyle(color: Steller.rust, fontWeight: FontWeight.w600)),
           ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock.dart';
+import '../data/models.dart';
 import '../theme.dart';
 
 /// Steller's jay crest mark: three ascending feather peaks with the eye spark.
@@ -239,23 +239,29 @@ class RoleToggle extends StatelessWidget {
         children: [
           for (final role in UserRole.values)
             Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(role),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: selected == role ? Steller.deepBlue : Colors.transparent,
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Text(
-                    role == UserRole.buyer ? 'I am a Buyer' : 'I am a Seller',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: selected == role ? Steller.onDark : Steller.deepBlue,
+              // The selected option is otherwise signalled by fill colour alone,
+              // which screen readers and colour-blind users cannot perceive.
+              child: Semantics(
+                button: true,
+                selected: selected == role,
+                child: GestureDetector(
+                  onTap: () => onChanged(role),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: selected == role ? Steller.deepBlue : Colors.transparent,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Text(
+                      role == UserRole.buyer ? 'I am a Buyer' : 'I am a Seller',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: selected == role ? Steller.onDark : Steller.deepBlue,
+                      ),
                     ),
                   ),
                 ),

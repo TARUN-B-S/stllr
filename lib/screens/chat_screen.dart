@@ -1,10 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock.dart';
+import '../data/models.dart';
+import '../data/store.dart';
 import '../theme.dart';
+import '../widgets/common.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.chat});
@@ -17,50 +17,38 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _input = TextEditingController();
-  final _scroll = ScrollController();
-  int _replyIndex = 0;
-  Timer? _pendingReply;
+  late final Stream<List<ChatMessage>> _messages;
+
+  @override
+  void initState() {
+    super.initState();
+    // Built once. Calling messagesOf() inside build() would hand StreamBuilder a
+    // fresh stream on every notifyListeners(), resubscribing and re-reading the
+    // whole thread each time.
+    _messages = context.read<AppStore>().messagesOf(widget.chat.id);
+  }
 
   @override
   void dispose() {
-    _pendingReply?.cancel();
     _input.dispose();
-    _scroll.dispose();
     super.dispose();
   }
 
   void _send() {
     final text = _input.text.trim();
     if (text.isEmpty) return;
-    final store = context.read<MockStore>();
+    final store = context.read<AppStore>();
     _input.clear();
     store.sendMessage(widget.chat, text);
-    _scrollDown();
-
-    _pendingReply?.cancel();
-    _pendingReply = Timer(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
-      store.receiveReply(widget.chat, mockReplies[_replyIndex % mockReplies.length]);
-      _replyIndex++;
-      _scrollDown();
-    });
-  }
-
-  void _scrollDown() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
-        _scroll.animateTo(
-          _scroll.position.maxScrollExtent + 80,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final store = context.watch<AppStore>();
+    final myUid = store.uid;
     final chat = widget.chat;
+    final peer = chat.peerName(myUid);
+
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -70,7 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
               radius: 17,
               backgroundColor: Steller.azureInk,
               child: Text(
-                chat.peerName.characters.first.toUpperCase(),
+                chat.peerInitial(myUid),
                 style: const TextStyle(color: Steller.onDark, fontWeight: FontWeight.w700, fontSize: 14),
               ),
             ),
@@ -79,7 +67,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(chat.peerName, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                  Text(peer, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
                   Text(
                     chat.requestTitle,
                     maxLines: 1,
@@ -104,11 +92,23 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.all(16),
-              itemCount: chat.messages.length,
-              itemBuilder: (context, i) => _Bubble(message: chat.messages[i]),
+            child: StreamBuilder<List<ChatMessage>>(
+              stream: _messages,
+              builder: (context, snapshot) {
+                final messages = snapshot.data ?? const <ChatMessage>[];
+                if (messages.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.chat_bubble_outline,
+                    title: 'Say hello',
+                    hint: 'Start the conversation — say hi and share what you can offer.',
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, i) => _Bubble(message: messages[i], myUid: myUid),
+                );
+              },
             ),
           ),
           Container(
@@ -147,15 +147,19 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Material(
-                    color: Steller.deepBlue,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: _send,
+                  Semantics(
+                    button: true,
+                    label: 'Send message',
+                    child: Material(
+                      color: Steller.deepBlue,
                       borderRadius: BorderRadius.circular(12),
-                      child: const Padding(
-                        padding: EdgeInsets.all(11),
-                        child: Icon(Icons.send_rounded, color: Steller.onDark, size: 20),
+                      child: InkWell(
+                        onTap: _send,
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Padding(
+                          padding: EdgeInsets.all(11),
+                          child: Icon(Icons.send_rounded, color: Steller.onDark, size: 20),
+                        ),
                       ),
                     ),
                   ),
@@ -170,13 +174,14 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message});
+  const _Bubble({required this.message, required this.myUid});
 
   final ChatMessage message;
+  final String myUid;
 
   @override
   Widget build(BuildContext context) {
-    final mine = message.fromMe;
+    final mine = message.fromMe(myUid);
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock.dart';
+import '../data/store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'result_screen.dart';
@@ -22,25 +22,34 @@ class _PostRequestScreenState extends State<PostRequestScreen> {
 
   static const _categories = ['Electronics', 'Printing', 'Grocery', 'Services', 'Furniture', 'Bakery'];
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    context.read<MockStore>().postRequest(
-          title: _title.text.trim(),
-          category: _category,
-          description: _description.text.trim(),
-          budget: _budget.text.trim(),
-        );
-    Navigator.pushReplacementNamed(
-      context,
-      '/result',
-      arguments: const ResultArgs(
-        success: true,
-        title: 'Request posted!',
-        message: 'Sellers can now see your request and reach out. You will get a message when someone responds.',
-        primaryLabel: 'Back to dashboard',
-        primaryRoute: '/buyer',
-      ),
-    );
+    final store = context.read<AppStore>();
+    try {
+      await store.postRequest(
+        title: _title.text.trim(),
+        category: _category,
+        description: _description.text.trim(),
+        budget: _budget.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(
+        context,
+        '/result',
+        arguments: const ResultArgs(
+          success: true,
+          title: 'Request posted!',
+          message: 'Sellers can now see your request and reach out. You will get a message when someone responds.',
+          primaryLabel: 'Back to dashboard',
+          primaryRoute: '/buyer',
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not post the request. Please try again.')),
+      );
+    }
   }
 
   @override

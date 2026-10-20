@@ -27,6 +27,21 @@ class ResultScreen extends StatelessWidget {
 
   final ResultArgs args;
 
+  /// The role dashboards are owned by `AuthGate`, which renders whichever one
+  /// matches the signed-in user. Pushing them from here stacked a second
+  /// dashboard above the home route, leaving a Back arrow on a screen that had
+  /// nowhere sensible to go back to. Returning to the home route lets AuthGate
+  /// show the dashboard without a stale stack behind it. Routes that are real
+  /// pushed screens (e.g. retrying payment) still push.
+  void _go(BuildContext context, String route) {
+    final navigator = Navigator.of(context);
+    if ((route == '/buyer' || route == '/seller') && navigator.canPop()) {
+      navigator.popUntil((r) => r.isFirst);
+      return;
+    }
+    navigator.pushReplacementNamed(route);
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = args.success ? Steller.azure : Steller.rust;
@@ -56,13 +71,13 @@ class ResultScreen extends StatelessWidget {
               ),
               const Spacer(),
               FilledButton(
-                onPressed: () => Navigator.pushReplacementNamed(context, args.primaryRoute),
+                onPressed: () => _go(context, args.primaryRoute),
                 child: Text(args.primaryLabel),
               ),
               if (args.secondaryLabel != null && args.secondaryRoute != null) ...[
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: () => Navigator.pushReplacementNamed(context, args.secondaryRoute!),
+                  onPressed: () => _go(context, args.secondaryRoute!),
                   child: Text(args.secondaryLabel!),
                 ),
               ],

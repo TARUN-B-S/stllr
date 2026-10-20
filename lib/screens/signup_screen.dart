@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock.dart';
+import '../data/models.dart';
+import '../data/store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'result_screen.dart';
@@ -22,36 +23,50 @@ class _SignupScreenState extends State<SignupScreen> {
   UserRole _role = UserRole.buyer;
   bool _obscure = true;
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final store = context.read<MockStore>();
-    store.login(_name.text.trim(), _email.text.trim(), _role);
-
-    if (_role == UserRole.seller && !store.user!.subscribed) {
-      Navigator.pushReplacementNamed(
-        context,
-        '/result',
-        arguments: ResultArgs(
-          success: true,
-          title: 'Account created!',
-          message: 'Complete your seller verification with a one-time payment to start receiving requests.',
-          primaryLabel: 'Continue to payment',
-          primaryRoute: '/payment',
-          secondaryRoute: '/seller',
-          secondaryLabel: 'Maybe later',
-        ),
+    final store = context.read<AppStore>();
+    try {
+      final u = await store.signup(
+        name: _name.text.trim(),
+        email: _email.text.trim(),
+        password: _password.text,
+        phone: _phone.text.trim(),
+        role: _role,
       );
-    } else {
-      Navigator.pushReplacementNamed(
-        context,
-        '/result',
-        arguments: ResultArgs(
-          success: true,
-          title: 'Welcome aboard!',
-          message: 'Your account is ready. Start posting requests and sellers will respond.',
-          primaryLabel: 'Go to dashboard',
-          primaryRoute: _role == UserRole.buyer ? '/buyer' : '/seller',
-        ),
+      if (!mounted) return;
+
+      if (_role == UserRole.seller && !u.subscribed) {
+        Navigator.pushReplacementNamed(
+          context,
+          '/result',
+          arguments: ResultArgs(
+            success: true,
+            title: 'Account created!',
+            message: 'Complete your seller verification with a one-time payment to start receiving requests.',
+            primaryLabel: 'Continue to payment',
+            primaryRoute: '/payment',
+            secondaryRoute: '/seller',
+            secondaryLabel: 'Maybe later',
+          ),
+        );
+      } else {
+        Navigator.pushReplacementNamed(
+          context,
+          '/result',
+          arguments: ResultArgs(
+            success: true,
+            title: 'Welcome aboard!',
+            message: 'Your account is ready. Start posting requests and sellers will respond.',
+            primaryLabel: 'Go to dashboard',
+            primaryRoute: _role == UserRole.buyer ? '/buyer' : '/seller',
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(store.error ?? 'Sign up failed. Please try again.')),
       );
     }
   }
@@ -67,6 +82,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loading = context.watch<AppStore>().loading;
     return Scaffold(
       appBar: AppBar(title: const Text('Create account')),
       body: SafeArea(
@@ -113,13 +129,23 @@ class _SignupScreenState extends State<SignupScreen> {
                   controller: _password,
                   obscure: _obscure,
                   suffixIcon: IconButton(
+                    tooltip: _obscure ? 'Show password' : 'Hide password',
                     icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Steller.blueGray),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                   validator: (v) => (v == null || v.length < 6) ? 'Minimum 6 characters' : null,
                 ),
                 const SizedBox(height: 24),
-                FilledButton(onPressed: _submit, child: Text(_role == UserRole.seller ? 'Sign up & verify' : 'Sign up')),
+                FilledButton(
+                  onPressed: loading ? null : _submit,
+                  child: loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.4, color: Steller.onDark),
+                        )
+                      : Text(_role == UserRole.seller ? 'Sign up & verify' : 'Sign up'),
+                ),
                 const SizedBox(height: 14),
                 Center(
                   child: TextButton(

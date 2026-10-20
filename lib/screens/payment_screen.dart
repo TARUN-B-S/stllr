@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock.dart';
+import '../data/store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'result_screen.dart';
@@ -53,7 +53,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
     } else {
-      context.read<MockStore>().completePayment();
+      context.read<AppStore>().completePayment();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
       Navigator.pushReplacementNamed(
         context,
         '/result',

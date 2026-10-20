@@ -53,9 +53,15 @@ app.*.map.json
 *.jks
 *.keystore
 key.properties
+serviceAccount.json
+serviceAccount*.json
 
 # Release artifacts
 *.apk
 *.aab
 *.ipa
 *.xcarchive
+
+# Node tooling (seed script)
+tool/node_modules/
+tool/package-lock.json
