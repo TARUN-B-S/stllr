@@ -1,0 +1,44 @@
+/* Print/PDF layout fixes for the report figures. */
+
+body {
+  line-height: 1.55;
+}
+
+/* Constrain the tall phone screenshots so a whole figure fits on one page. */
+figure {
+  margin: 1.4em auto;
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+figure img {
+  display: block;
+  margin: 0 auto;
+  /* Letter page usable height is ~900px; leave room for the caption. */
+  max-height: 620px;
+  max-width: 92%;
+  width: auto;
+  height: auto;
+  border: 1px solid #e4eaf4;
+  border-radius: 10px;
+}
+
+/* Keep the italic caption with its image. */
+figure + p,
+p:has(> img) {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+figcaption {
+  font-style: italic;
+  color: #444;
+  margin-top: 0.5em;
+}
+
+/* Don't orphan headings from the content that follows. */
+h1, h2, h3, h4 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
