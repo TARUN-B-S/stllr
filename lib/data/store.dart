@@ -9,22 +9,12 @@ import '../services/request_repo.dart';
 import '../services/user_repo.dart';
 import 'models.dart';
 
-/// Placeholder seller used to greet a buyer the moment a request is posted,
-/// so the buyer dashboard is never empty in the demo. The seed script creates
-/// a matching `users/demo-seller` document.
-const String demoSellerUid = 'demo-seller';
-const String demoSellerName = 'Meera (Jay & Co.)';
-
 class AppStore extends ChangeNotifier {
-  AppStore({
-    AuthService? auth,
-    UserRepo? users,
-    RequestRepo? requests,
-    ChatRepo? chats,
-  })  : _auth = auth ?? AuthService(),
-        _users = users ?? UserRepo(),
-        _requests = requests ?? RequestRepo(),
-        _chats = chats ?? ChatRepo() {
+  AppStore({AuthService? auth, UserRepo? users, RequestRepo? requests, ChatRepo? chats})
+    : _auth = auth ?? AuthService(),
+      _users = users ?? UserRepo(),
+      _requests = requests ?? RequestRepo(),
+      _chats = chats ?? ChatRepo() {
     _init();
   }
 
@@ -48,11 +38,9 @@ class AppStore extends ChangeNotifier {
 
   String get uid => user?.uid ?? '';
 
-  List<BuyRequest> get myRequests =>
-      requests.where((r) => r.buyerId == uid).toList();
+  List<BuyRequest> get myRequests => requests.where((r) => r.buyerId == uid).toList();
 
-  List<BuyRequest> get otherRequests =>
-      requests.where((r) => r.buyerId != uid).toList();
+  List<BuyRequest> get otherRequests => requests.where((r) => r.buyerId != uid).toList();
 
   /// Chats where the current user is the buyer (the peer is a seller).
   List<Chat> get sellerChats => chats.where((c) => c.buyerId == uid).toList();
@@ -68,20 +56,22 @@ class AppStore extends ChangeNotifier {
     _userSub?.cancel();
     _reqSub?.cancel();
     _chatSub?.cancel();
+    _dataAttached = false;
+    user = null;
+    requests = [];
+    chats = [];
 
     if (fbUser == null) {
       // Also reached by a token expiry or revocation, not just logout(), so the
       // data subscriptions must be re-armed here or the next login would never
       // reattach them.
-      _dataAttached = false;
-      user = null;
-      requests = [];
-      chats = [];
       ready = true;
       notifyListeners();
       return;
     }
 
+    ready = false;
+    notifyListeners();
     _userSub = _users.watchUser(fbUser.uid).listen((u) {
       user = u;
       ready = true;
@@ -109,8 +99,14 @@ class AppStore extends ChangeNotifier {
     _setLoading(true);
     try {
       final fbUser = await _auth.signIn(email: email, password: password);
-      final u = await _users.getUser(fbUser.uid) ??
-          AppUser(uid: fbUser.uid, name: fbUser.email ?? 'User', email: fbUser.email ?? '', role: UserRole.buyer);
+      final u = await _users.getUser(fbUser.uid);
+      if (u == null) {
+        await _auth.signOut();
+        throw FirebaseAuthException(
+          code: 'missing-profile',
+          message: 'This account has no marketplace profile. Please create a new account.',
+        );
+      }
       user = u;
       ready = true;
       notifyListeners();
@@ -132,13 +128,7 @@ class AppStore extends ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
-      final u = await _auth.signUp(
-        name: name,
-        email: email,
-        password: password,
-        phone: phone,
-        role: role,
-      );
+      final u = await _auth.signUp(name: name, email: email, password: password, phone: phone, role: role);
       user = u;
       ready = true;
       notifyListeners();
@@ -199,32 +189,19 @@ class AppStore extends ChangeNotifier {
       buyerId: me.uid,
       buyerName: me.name,
     );
-    final id = await _requests.create(request);
-    await _chats.welcomeFromSeller(
-      requestId: id,
-      requestTitle: title,
-      buyerId: me.uid,
-      buyerName: me.name,
-      sellerId: demoSellerUid,
-      sellerName: demoSellerName,
-    );
+    await _requests.create(request);
   }
 
   Future<Chat> startChatFor(BuyRequest r) async {
     final me = user!;
-    final isNew = !chats.any((c) => c.id == _chats.chatId(requestId: r.id, sellerId: me.uid));
-    final chat = await _chats.ensureChat(
-      request: r,
-      sellerId: me.uid,
-      sellerName: me.name,
-      isNew: isNew,
-    );
-    if (isNew) await _requests.incrementResponses(r.id);
-    return chat;
+    final id = _chats.chatId(requestId: r.id, sellerId: me.uid);
+    for (final chat in chats) {
+      if (chat.id == id) return chat;
+    }
+    return _chats.createChat(request: r, sellerId: me.uid, sellerName: me.name);
   }
 
-  Future<void> sendMessage(Chat chat, String text) =>
-      _chats.sendMessage(chat.id, text, uid);
+  Future<void> sendMessage(Chat chat, String text) => _chats.sendMessage(chat.id, text, uid);
 
   Stream<List<ChatMessage>> messagesOf(String chatId) => _chats.watchMessages(chatId);
 
@@ -251,6 +228,8 @@ class AppStore extends ChangeNotifier {
           return 'Choose a stronger password (6+ characters).';
         case 'network-request-failed':
           return 'Network error. Check your connection.';
+        case 'missing-profile':
+          return e.message ?? 'This account has no marketplace profile.';
         case 'operation-not-allowed':
         case 'internal-error':
           // Surfaced when Email/Password sign-in is disabled for the project.

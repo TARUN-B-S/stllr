@@ -24,7 +24,7 @@ const auth = getAuth();
 const db = getFirestore();
 
 const BUYER_UID = 'demo-buyer';
-const SELLER_UID = 'demo-seller'; // must match AppStore.demoSellerUid
+const SELLER_UID = 'demo-seller';
 const BUYER2_UID = 'demo-buyer-2';
 
 const secondsAgo = (s) => Timestamp.fromMillis(Date.now() - s * 1000);

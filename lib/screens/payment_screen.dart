@@ -35,10 +35,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
     setState(() => _processing = true);
     await Future.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
-    setState(() => _processing = false);
 
     final declined = _card.text.replaceAll(' ', '').startsWith('4000');
     if (declined) {
+      setState(() => _processing = false);
       Navigator.pushReplacementNamed(
         context,
         '/result',
@@ -53,8 +53,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
     } else {
-      context.read<AppStore>().completePayment();
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      try {
+        await context.read<AppStore>().completePayment();
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _processing = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not complete verification. Please try again.')));
+        return;
+      }
       if (!mounted) return;
       Navigator.pushReplacementNamed(
         context,
@@ -84,10 +92,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Steller.charcoal,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                  decoration: BoxDecoration(color: Steller.charcoal, borderRadius: BorderRadius.circular(16)),
                   child: const Row(
                     children: [
                       Icon(Icons.workspace_premium_outlined, color: Steller.amber, size: 30),
@@ -96,16 +101,22 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('One-time verification',
-                                style: TextStyle(color: Steller.onDark, fontWeight: FontWeight.w700, fontSize: 16)),
+                            Text(
+                              'One-time verification',
+                              style: TextStyle(color: Steller.onDark, fontWeight: FontWeight.w700, fontSize: 16),
+                            ),
                             SizedBox(height: 2),
-                            Text('Unlimited responses · verified badge',
-                                style: TextStyle(color: Steller.onDarkMuted, fontSize: 13)),
+                            Text(
+                              'Unlimited responses · verified badge',
+                              style: TextStyle(color: Steller.onDarkMuted, fontSize: 13),
+                            ),
                           ],
                         ),
                       ),
-                      Text('₹499',
-                          style: TextStyle(color: Steller.amber, fontWeight: FontWeight.w800, fontSize: 22)),
+                      Text(
+                        '₹499',
+                        style: TextStyle(color: Steller.amber, fontWeight: FontWeight.w800, fontSize: 22),
+                      ),
                     ],
                   ),
                 ),

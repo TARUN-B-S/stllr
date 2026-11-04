@@ -34,12 +34,20 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty) return;
     final store = context.read<AppStore>();
     _input.clear();
-    store.sendMessage(widget.chat, text);
+    try {
+      await store.sendMessage(widget.chat, text);
+    } catch (_) {
+      if (!mounted) return;
+      _input.text = text;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not send the message. Please try again.')));
+    }
   }
 
   @override
@@ -83,9 +91,9 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(
             icon: const Icon(Icons.call_outlined),
             tooltip: 'Voice call',
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Calling is available in the full version.')),
-            ),
+            onPressed: () => ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Calling is available in the full version.'))),
           ),
         ],
       ),
@@ -129,12 +137,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       builder: (_) => AlertDialog(
                         title: const Text('Propose a meeting'),
                         content: const Text('A meeting slot (Sat, 11:00 AM) has been suggested to both parties.'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Close'),
-                          ),
-                        ],
+                        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
                       ),
                     ),
                   ),
@@ -143,7 +146,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       controller: _input,
                       onSubmitted: (_) => _send(),
                       textInputAction: TextInputAction.send,
-                      decoration: const InputDecoration(hintText: 'Type a message…', contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                      decoration: const InputDecoration(
+                        hintText: 'Type a message…',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -203,11 +209,7 @@ class _Bubble extends StatelessWidget {
           children: [
             Text(
               message.text,
-              style: TextStyle(
-                fontSize: 14.5,
-                height: 1.35,
-                color: mine ? Steller.onDark : Steller.charcoal,
-              ),
+              style: TextStyle(fontSize: 14.5, height: 1.35, color: mine ? Steller.onDark : Steller.charcoal),
             ),
             const SizedBox(height: 4),
             Text(

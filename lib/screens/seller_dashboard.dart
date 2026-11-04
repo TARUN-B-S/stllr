@@ -21,9 +21,13 @@ class _SellerDashboardState extends State<SellerDashboard> {
     final store = context.watch<AppStore>();
     final user = store.user;
     final t = Theme.of(context).textTheme;
-    final categories = ['All', ...{for (final r in store.requests) r.category}];
+    final categories = [
+      'All',
+      ...{for (final r in store.requests) r.category},
+    ];
     final filtered = store.requests.where((r) {
-      final matchesQuery = _query.isEmpty ||
+      final matchesQuery =
+          _query.isEmpty ||
           r.title.toLowerCase().contains(_query.toLowerCase()) ||
           r.description.toLowerCase().contains(_query.toLowerCase());
       final matchesCat = _category == 'All' || r.category == _category;
@@ -51,7 +55,10 @@ class _SellerDashboardState extends State<SellerDashboard> {
           if (!subscribed)
             TextButton(
               onPressed: () => Navigator.pushNamed(context, '/payment'),
-              child: const Text('Verify', style: TextStyle(color: Steller.amber, fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Verify',
+                style: TextStyle(color: Steller.amber, fontWeight: FontWeight.w700),
+              ),
             ),
           IconButton(
             icon: const Icon(Icons.person_outline),
@@ -67,10 +74,7 @@ class _SellerDashboardState extends State<SellerDashboard> {
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
             child: TextField(
               onChanged: (v) => setState(() => _query = v),
-              decoration: const InputDecoration(
-                hintText: 'Search requests…',
-                prefixIcon: Icon(Icons.search),
-              ),
+              decoration: const InputDecoration(hintText: 'Search requests…', prefixIcon: Icon(Icons.search)),
             ),
           ),
           SizedBox(
@@ -118,6 +122,10 @@ class _SellerDashboardState extends State<SellerDashboard> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () async {
+                    if (!subscribed) {
+                      Navigator.pushNamed(context, '/payment');
+                      return;
+                    }
                     final messenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(context);
                     try {
@@ -134,7 +142,7 @@ class _SellerDashboardState extends State<SellerDashboard> {
                       );
                     }
                   },
-                  child: const Text('Respond'),
+                  child: Text(subscribed ? 'Respond' : 'Verify to respond'),
                 ),
               ),
             ),

@@ -9,13 +9,9 @@
 //
 // The goldens are then copied into docs/screenshots/ for the written report.
 
-import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -36,41 +32,19 @@ import 'package:steller_market/services/request_repo.dart';
 import 'package:steller_market/services/user_repo.dart';
 import 'package:steller_market/theme.dart';
 
+import 'test_fonts.dart';
+
 // ---- Fonts ----------------------------------------------------------------
 // `flutter test` substitutes every glyph with the `Ahem` box font, so goldens
 // render text as solid rectangles. Loading the real Roboto family (which the
 // Material theme resolves to) restores legible text in the screenshots.
 
-const _fontDir =
-    '/tools/App-Dev-Env/flutter/bin/cache/dart-sdk/bin/resources/devtools/assets/fonts/Roboto';
-
-Future<void> _loadRoboto() async {
-  // All faces must be added to ONE FontLoader: separate loaders for the same
-  // family replace each other instead of accumulating, which leaves only the
-  // last weight available. Each TTF declares its own weight, so the engine
-  // matches w400/w500/w700/w800 to the right face instead of faux-bolding —
-  // which smears white bold text on the dark AppBar into illegible blocks.
-  const files = [
-    'Roboto-Regular.ttf',
-    'Roboto-Medium.ttf',
-    'Roboto-Bold.ttf',
-    'Roboto-Black.ttf',
-  ];
-  final roboto = FontLoader('Roboto');
-  for (final f in files) {
-    final bytes = Uint8List.fromList(File('$_fontDir/$f').readAsBytesSync());
-    roboto.addFont(Future.value(ByteData.view(bytes.buffer)));
-  }
-  await roboto.load();
-
-  // Material icons, otherwise every Icon() renders as the .notdef box in goldens.
-  final icons = Uint8List.fromList(File(
-          '/tools/App-Dev-Env/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf')
-      .readAsBytesSync());
-  final iconLoader = FontLoader('MaterialIcons')
-    ..addFont(Future.value(ByteData.view(icons.buffer)));
-  await iconLoader.load();
-}
+Future<void> _loadRoboto() => loadRobotoFonts(const [
+  'Roboto-Regular.ttf',
+  'Roboto-Medium.ttf',
+  'Roboto-Bold.ttf',
+  'Roboto-Black.ttf',
+], includeMaterialIcons: true);
 
 // ---- Demo data (mirrors tool/seed.mjs) ------------------------------------
 
@@ -100,8 +74,7 @@ Future<void> _seed(FakeFirebaseFirestore db) async {
   await db.collection('requests').doc('req-earbuds').set({
     'title': '20 units wireless earbuds',
     'category': 'Electronics',
-    'description':
-        'Looking for TWS earbuds with ANC, bulk order for a college fest. Need delivery within 3 weeks.',
+    'description': 'Looking for TWS earbuds with ANC, bulk order for a college fest. Need delivery within 3 weeks.',
     'budget': '₹18,000 – ₹24,000',
     'buyerId': buyerUid,
     'buyerName': 'Aarav Mehta',
@@ -111,8 +84,7 @@ Future<void> _seed(FakeFirebaseFirestore db) async {
   await db.collection('requests').doc('req-chairs').set({
     'title': 'Ergonomic office chairs x12',
     'category': 'Furniture',
-    'description':
-        'Startup office, adjustable lumbar and headrest, warranty required.',
+    'description': 'Startup office, adjustable lumbar and headrest, warranty required.',
     'budget': '₹72,000',
     'buyerId': buyerUid,
     'buyerName': 'Aarav Mehta',
@@ -122,8 +94,7 @@ Future<void> _seed(FakeFirebaseFirestore db) async {
   await db.collection('requests').doc('req-cards').set({
     'title': 'Custom wedding invitation cards',
     'category': 'Printing',
-    'description':
-        '500 premium cards with foil work and matching envelopes. Design help appreciated.',
+    'description': '500 premium cards with foil work and matching envelopes. Design help appreciated.',
     'budget': '₹30,000',
     'buyerId': 'demo-buyer-2',
     'buyerName': 'Diya Sharma',
@@ -133,8 +104,7 @@ Future<void> _seed(FakeFirebaseFirestore db) async {
   await db.collection('requests').doc('req-cake').set({
     'title': 'Birthday cake, chocolate truffle 2kg',
     'category': 'Bakery',
-    'description':
-        'Eggless, sugar-free option preferred, delivery to Koramangala on Saturday.',
+    'description': 'Eggless, sugar-free option preferred, delivery to Koramangala on Saturday.',
     'budget': '₹1,500',
     'buyerId': 'demo-buyer-2',
     'buyerName': 'Diya Sharma',
@@ -251,8 +221,7 @@ void _phone(WidgetTester tester) {
 /// real device the platform default IS Roboto, so this is purely a harness
 /// fix: pin every component text style to the Roboto we registered. App source
 /// is untouched.
-TextStyle _pin(TextStyle? s) =>
-    (s ?? const TextStyle()).copyWith(fontFamily: 'Roboto');
+TextStyle _pin(TextStyle? s) => (s ?? const TextStyle()).copyWith(fontFamily: 'Roboto');
 
 ThemeData _pinnedTheme() {
   final base = buildTheme();
@@ -272,19 +241,13 @@ ThemeData _pinnedTheme() {
       labelMedium: _pin(base.textTheme.labelMedium),
       labelSmall: _pin(base.textTheme.labelSmall),
     ),
-    appBarTheme: base.appBarTheme.copyWith(
-      titleTextStyle: _pin(base.appBarTheme.titleTextStyle),
-    ),
-    chipTheme: base.chipTheme.copyWith(
-      labelStyle: _pin(base.chipTheme.labelStyle),
-    ),
+    appBarTheme: base.appBarTheme.copyWith(titleTextStyle: _pin(base.appBarTheme.titleTextStyle)),
+    chipTheme: base.chipTheme.copyWith(labelStyle: _pin(base.chipTheme.labelStyle)),
     dialogTheme: base.dialogTheme.copyWith(
       titleTextStyle: _pin(base.dialogTheme.titleTextStyle),
       contentTextStyle: _pin(base.dialogTheme.contentTextStyle),
     ),
-    snackBarTheme: base.snackBarTheme.copyWith(
-      contentTextStyle: _pin(base.snackBarTheme.contentTextStyle),
-    ),
+    snackBarTheme: base.snackBarTheme.copyWith(contentTextStyle: _pin(base.snackBarTheme.contentTextStyle)),
     inputDecorationTheme: base.inputDecorationTheme.copyWith(
       hintStyle: _pin(base.inputDecorationTheme.hintStyle),
       labelStyle: _pin(base.inputDecorationTheme.labelStyle),
@@ -294,45 +257,25 @@ ThemeData _pinnedTheme() {
       suffixStyle: _pin(base.inputDecorationTheme.suffixStyle),
     ),
     filledButtonTheme: FilledButtonThemeData(
-      style: fb?.copyWith(
-        textStyle: WidgetStatePropertyAll(
-          _pin(fb.textStyle?.resolve(const <WidgetState>{})),
-        ),
-      ),
+      style: fb?.copyWith(textStyle: WidgetStatePropertyAll(_pin(fb.textStyle?.resolve(const <WidgetState>{})))),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
-      style: ob?.copyWith(
-        textStyle: WidgetStatePropertyAll(
-          _pin(ob.textStyle?.resolve(const <WidgetState>{})),
-        ),
-      ),
+      style: ob?.copyWith(textStyle: WidgetStatePropertyAll(_pin(ob.textStyle?.resolve(const <WidgetState>{})))),
     ),
   );
 }
 
-Future<void> _render(
-  WidgetTester tester,
-  Widget home,
-  AppStore store,
-  String file,
-) async {
+Future<void> _render(WidgetTester tester, Widget home, AppStore store, String file) async {
   final theme = _pinnedTheme();
 
   await tester.pumpWidget(
     ChangeNotifierProvider<AppStore>.value(
       value: store,
-      child: MaterialApp(
-        theme: theme,
-        debugShowCheckedModeBanner: false,
-        home: home,
-      ),
+      child: MaterialApp(theme: theme, debugShowCheckedModeBanner: false, home: home),
     ),
   );
   await tester.pump(const Duration(milliseconds: 400));
-  await expectLater(
-    find.byType(MaterialApp),
-    matchesGoldenFile('goldens/$file.png'),
-  );
+  await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$file.png'));
 }
 
 // ---- Screens ---------------------------------------------------------------
@@ -361,15 +304,13 @@ void main() {
   testWidgets('04 seller dashboard', (tester) async {
     _phone(tester);
     final store = await _store(tester, UserRole.seller);
-    await _render(
-        tester, const SellerDashboard(), store, '04-seller-dashboard');
+    await _render(tester, const SellerDashboard(), store, '04-seller-dashboard');
   });
 
   testWidgets('05 post request', (tester) async {
     _phone(tester);
     final store = await _store(tester, UserRole.buyer);
-    await _render(
-        tester, const PostRequestScreen(), store, '05-post-request');
+    await _render(tester, const PostRequestScreen(), store, '05-post-request');
   });
 
   testWidgets('06 chat', (tester) async {
@@ -393,8 +334,7 @@ void main() {
         args: ResultArgs(
           success: true,
           title: 'Request posted!',
-          message:
-              'Sellers can now see your request and reach out. You will get a message when someone responds.',
+          message: 'Sellers can now see your request and reach out. You will get a message when someone responds.',
           primaryLabel: 'Back to dashboard',
           primaryRoute: '/buyer',
         ),
@@ -413,8 +353,7 @@ void main() {
         args: ResultArgs(
           success: false,
           title: 'Payment failed',
-          message:
-              'Your card was declined. No amount was deducted. Please try another card.',
+          message: 'Your card was declined. No amount was deducted. Please try another card.',
           primaryLabel: 'Try again',
           primaryRoute: '/payment',
           secondaryLabel: 'Back to dashboard',

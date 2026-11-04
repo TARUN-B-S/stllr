@@ -5,8 +5,8 @@ import 'user_repo.dart';
 
 class AuthService {
   AuthService({FirebaseAuth? auth, UserRepo? users})
-      : _auth = auth ?? FirebaseAuth.instance,
-        _users = users ?? UserRepo();
+    : _auth = auth ?? FirebaseAuth.instance,
+      _users = users ?? UserRepo();
 
   final FirebaseAuth _auth;
   final UserRepo _users;
@@ -23,15 +23,17 @@ class AuthService {
     required UserRole role,
   }) async {
     final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-    final u = AppUser(
-      uid: cred.user!.uid,
-      name: name,
-      email: email,
-      role: role,
-      phone: phone,
-    );
-    await _users.setUser(u);
-    return u;
+    final firebaseUser = cred.user!;
+    final user = AppUser(uid: firebaseUser.uid, name: name, email: email, role: role, phone: phone);
+    try {
+      await _users.setUser(user);
+      return user;
+    } catch (error, stackTrace) {
+      try {
+        await firebaseUser.delete();
+      } catch (_) {}
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<User> signIn({required String email, required String password}) async {
