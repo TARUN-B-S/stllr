@@ -141,7 +141,10 @@ class RequestCard extends StatelessWidget {
                 children: [
                   Chip(label: Text(request.category)),
                   const Spacer(),
-                  Text('${request.responses} responses', style: t.labelMedium),
+                  Text(
+                    '${request.responses} ${request.responses == 1 ? 'response' : 'responses'}',
+                    style: t.labelMedium,
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -153,17 +156,25 @@ class RequestCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.person_outline, size: 15),
                   const SizedBox(width: 4),
-                  Text(request.buyerName, style: t.labelMedium),
+                  Flexible(
+                    child: Text(
+                      request.buyerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.labelMedium,
+                    ),
+                  ),
                   const SizedBox(width: 14),
                   const Icon(Icons.currency_rupee, size: 15, color: Steller.azure),
-                  Expanded(
+                  Flexible(
                     child: Text(
                       request.budget,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.labelLarge?.copyWith(color: Steller.deepBlue),
                     ),
                   ),
-                  ?trailing,
+                  if (trailing != null) ...[const SizedBox(width: 8), trailing!],
                 ],
               ),
             ],
@@ -188,6 +199,37 @@ class SectionTitle extends StatelessWidget {
         children: [
           Expanded(child: Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelSmall)),
           ?action,
+        ],
+      ),
+    );
+  }
+}
+
+class DataErrorBanner extends StatelessWidget {
+  const DataErrorBanner({super.key, required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF6EA),
+        border: Border.all(color: Steller.amber),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 18, color: Steller.amberInk),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontSize: 12.5, height: 1.3, color: Steller.amberInk),
+            ),
+          ),
         ],
       ),
     );

@@ -48,6 +48,11 @@ class AppStore extends ChangeNotifier {
   /// Chats where the current user is the seller (the peer is a buyer).
   List<Chat> get buyerChats => chats.where((c) => c.sellerId == uid).toList();
 
+  /// Seller conversations opened on a single request, so the buyer can jump
+  /// straight into a response instead of hunting through their message list.
+  List<Chat> chatsForRequest(String requestId) =>
+      chats.where((c) => c.requestId == requestId).toList();
+
   void _init() {
     _authSub = _auth.authStateChanges.listen(_onAuthChanged);
   }
@@ -57,6 +62,8 @@ class AppStore extends ChangeNotifier {
     _reqSub?.cancel();
     _chatSub?.cancel();
     _dataAttached = false;
+    _requestsError = null;
+    _chatsError = null;
     user = null;
     requests = [];
     chats = [];
@@ -81,18 +88,43 @@ class AppStore extends ChangeNotifier {
   }
 
   bool _dataAttached = false;
+  String? _requestsError;
+  String? _chatsError;
+
+  /// Non-null when a live listener failed (rules, index, network). Shown in the
+  /// dashboards so a broken read never masquerades as an empty marketplace.
+  String? get dataError => _chatsError ?? _requestsError;
 
   void _attachData(String uid) {
     if (_dataAttached) return;
     _dataAttached = true;
-    _reqSub = _requests.watchAll().listen((list) {
-      requests = list;
-      notifyListeners();
-    });
-    _chatSub = _chats.watchFor(uid).listen((list) {
-      chats = list;
-      notifyListeners();
-    });
+    _reqSub = _requests.watchAll().listen(
+      (list) {
+        requests = list;
+        _requestsError = null;
+        notifyListeners();
+      },
+      onError: (Object e) => _onDataError(e, chats: false),
+    );
+    _chatSub = _chats.watchFor(uid).listen(
+      (list) {
+        chats = list;
+        _chatsError = null;
+        notifyListeners();
+      },
+      onError: (Object e) => _onDataError(e, chats: true),
+    );
+  }
+
+  void _onDataError(Object e, {required bool chats}) {
+    const message = 'Could not load your marketplace data. Check the connection and the Firestore rules.';
+    debugPrint('Firestore listener failed: $e');
+    if (chats) {
+      _chatsError = message;
+    } else {
+      _requestsError = message;
+    }
+    notifyListeners();
   }
 
   Future<AppUser> login({required String email, required String password}) async {

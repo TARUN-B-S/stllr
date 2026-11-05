@@ -1,12 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/models.dart';
 import '../data/store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
 class BuyerDashboard extends StatelessWidget {
   const BuyerDashboard({super.key});
+
+  /// A request card is the buyer's entry point into the replies: one response
+  /// opens that chat directly, several ask which seller to read.
+  Future<void> _openResponses(BuildContext context, AppStore store, BuyRequest r) async {
+    final threads = store.chatsForRequest(r.id);
+    if (threads.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No responses to "${r.title}" yet.')),
+      );
+      return;
+    }
+    if (threads.length == 1) {
+      await Navigator.pushNamed(context, '/chat', arguments: threads.single);
+      return;
+    }
+    final picked = await showModalBottomSheet<Chat>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Text(
+                '${threads.length} sellers responded to "${r.title}"',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final c in threads)
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                leading: AvatarBadge(label: c.peerInitial(store.uid)),
+                title: Text(c.peerName(store.uid)),
+                subtitle: Text(c.lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () => Navigator.pop(sheetContext, c),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null && context.mounted) {
+      await Navigator.pushNamed(context, '/chat', arguments: picked);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +93,7 @@ class BuyerDashboard extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [
+          if (store.dataError != null) DataErrorBanner(message: store.dataError!),
           if (mine.isNotEmpty) ...[
             const SectionTitle('My requests'),
             for (final r in mine)
@@ -54,10 +101,10 @@ class BuyerDashboard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                 child: RequestCard(
                   request: r,
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${r.responses} sellers responded to ${r.title}')),
+                  trailing: Icon(
+                    r.responses > 0 ? Icons.forum_outlined : Icons.chevron_right,
                   ),
+                  onTap: () => _openResponses(context, store, r),
                 ),
               ),
           ],

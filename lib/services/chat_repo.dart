@@ -9,11 +9,22 @@ class ChatRepo {
 
   CollectionReference<Map<String, dynamic>> get _col => _db.collection('chats');
 
+  // Sorted client-side so the app does not depend on a composite index for
+  // (participants, updatedAt) being deployed. Without this the listener failed
+  // with FAILED_PRECONDITION and the dashboards silently showed "no" data,
+  // which read as "no responses".
   Stream<List<Chat>> watchFor(String uid) => _col
       .where('participants', arrayContains: uid)
-      .orderBy('updatedAt', descending: true)
       .snapshots()
-      .map((s) => s.docs.map(Chat.fromDoc).toList());
+      .map((s) {
+        final list = s.docs.map(Chat.fromDoc).toList();
+        list.sort((a, b) {
+          final at = a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bt = b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return bt.compareTo(at);
+        });
+        return list;
+      });
 
   Stream<List<ChatMessage>> watchMessages(String chatId) => _col
       .doc(chatId)
